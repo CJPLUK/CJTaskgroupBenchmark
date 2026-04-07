@@ -1,0 +1,53 @@
+# Structured concurrency CPU benchmark (Cangjie)
+# total_workload=4000000,warmup_runs=1,measured_runs=5
+language,benchmark,total_workload,task_count,iteration,elapsed_us,checksum
+cangjie,sequential_baseline,4000000,1,1,71063,2051070917
+cangjie,sequential_baseline,4000000,1,2,71704,2051070917
+cangjie,sequential_baseline,4000000,1,3,67106,2051070917
+cangjie,sequential_baseline,4000000,1,4,68631,2051070917
+cangjie,sequential_baseline,4000000,1,5,67339,2051070917
+# summary,cangjie,sequential_baseline,task_count=1,avg_us=69168,median_us=68631
+cangjie,structured_thread_scope,4000000,1,1,73007,2051070917
+cangjie,structured_thread_scope,4000000,1,2,76544,2051070917
+cangjie,structured_thread_scope,4000000,1,3,71466,2051070917
+cangjie,structured_thread_scope,4000000,1,4,74744,2051070917
+cangjie,structured_thread_scope,4000000,1,5,84740,2051070917
+# summary,cangjie,structured_thread_scope,task_count=1,avg_us=76100,median_us=74744
+cangjie,structured_thread_scope,4000000,2,1,41860,1536447079
+cangjie,structured_thread_scope,4000000,2,2,44652,1536447079
+cangjie,structured_thread_scope,4000000,2,3,43800,1536447079
+cangjie,structured_thread_scope,4000000,2,4,45236,1536447079
+cangjie,structured_thread_scope,4000000,2,5,42463,1536447079
+# summary,cangjie,structured_thread_scope,task_count=2,avg_us=43602,median_us=43800
+cangjie,structured_thread_scope,4000000,4,1,25431,200342624
+cangjie,structured_thread_scope,4000000,4,2,24000,200342624
+cangjie,structured_thread_scope,4000000,4,3,25898,200342624
+cangjie,structured_thread_scope,4000000,4,4,26728,200342624
+cangjie,structured_thread_scope,4000000,4,5,25268,200342624
+# summary,cangjie,structured_thread_scope,task_count=4,avg_us=25465,median_us=25431
+cangjie,structured_thread_scope,4000000,8,1,19451,1626273555
+cangjie,structured_thread_scope,4000000,8,2,16160,1626273555
+cangjie,structured_thread_scope,4000000,8,3,18102,1626273555
+cangjie,structured_thread_scope,4000000,8,4,16223,1626273555
+cangjie,structured_thread_scope,4000000,8,5,15446,1626273555
+# summary,cangjie,structured_thread_scope,task_count=8,avg_us=17076,median_us=16223
+cangjie,structured_thread_scope,4000000,16,1,17602,1922879457
+cangjie,structured_thread_scope,4000000,16,2,17604,1922879457
+cangjie,structured_thread_scope,4000000,16,3,19251,1922879457
+cangjie,structured_thread_scope,4000000,16,4,17906,1922879457
+cangjie,structured_thread_scope,4000000,16,5,15904,1922879457
+# summary,cangjie,structured_thread_scope,task_count=16,avg_us=17653,median_us=17604
+cangjie,structured_thread_scope,4000000,32,1,16939,519195291
+cangjie,structured_thread_scope,4000000,32,2,17364,519195291
+cangjie,structured_thread_scope,4000000,32,3,16123,519195291
+cangjie,structured_thread_scope,4000000,32,4,17295,519195291
+cangjie,structured_thread_scope,4000000,32,5,16301,519195291
+# summary,cangjie,structured_thread_scope,task_count=32,avg_us=16804,median_us=16939
+cangjie,structured_thread_scope,4000000,64,1,15337,1645254011
+cangjie,structured_thread_scope,4000000,64,2,14899,1645254011
+cangjie,structured_thread_scope,4000000,64,3,15326,1645254011
+cangjie,structured_thread_scope,4000000,64,4,16501,1645254011
+cangjie,structured_thread_scope,4000000,64,5,15991,1645254011
+# summary,cangjie,structured_thread_scope,task_count=64,avg_us=15610,median_us=15337
+
+cjpm run finished
