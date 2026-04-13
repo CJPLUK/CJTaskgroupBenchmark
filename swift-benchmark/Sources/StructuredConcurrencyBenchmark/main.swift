@@ -43,7 +43,7 @@ private func runStructured(taskCount: Int) async -> Int64 {
 
         var checksum: Int64 = 0
         for await value in group {
-            checksum = (checksum + value) % checksumModulus
+            checksum = (checksum + value) % 2_147_483_647
         }
         return checksum
     }

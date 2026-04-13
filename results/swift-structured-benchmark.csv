@@ -1,51 +1,51 @@
 # Structured concurrency CPU benchmark (Swift)
 # total_workload=4000000,warmup_runs=1,measured_runs=5
 language,benchmark,total_workload,task_count,iteration,elapsed_us,checksum
-swift,sequential_baseline,4000000,1,1,17275,2051070917
-swift,sequential_baseline,4000000,1,2,17191,2051070917
-swift,sequential_baseline,4000000,1,3,16213,2051070917
-swift,sequential_baseline,4000000,1,4,16887,2051070917
-swift,sequential_baseline,4000000,1,5,15879,2051070917
-# summary,swift,sequential_baseline,task_count=1,avg_us=16689,median_us=16887
-swift,structured_task_group,4000000,1,1,16875,2051070917
-swift,structured_task_group,4000000,1,2,16579,2051070917
-swift,structured_task_group,4000000,1,3,16345,2051070917
-swift,structured_task_group,4000000,1,4,18077,2051070917
-swift,structured_task_group,4000000,1,5,16984,2051070917
-# summary,swift,structured_task_group,task_count=1,avg_us=16972,median_us=16875
-swift,structured_task_group,4000000,2,1,9781,1536447079
-swift,structured_task_group,4000000,2,2,10613,1536447079
-swift,structured_task_group,4000000,2,3,9465,1536447079
-swift,structured_task_group,4000000,2,4,9962,1536447079
-swift,structured_task_group,4000000,2,5,10455,1536447079
-# summary,swift,structured_task_group,task_count=2,avg_us=10055,median_us=9962
-swift,structured_task_group,4000000,4,1,5810,200342624
-swift,structured_task_group,4000000,4,2,5682,200342624
-swift,structured_task_group,4000000,4,3,6458,200342624
-swift,structured_task_group,4000000,4,4,5990,200342624
-swift,structured_task_group,4000000,4,5,5882,200342624
-# summary,swift,structured_task_group,task_count=4,avg_us=5964,median_us=5882
-swift,structured_task_group,4000000,8,1,3097,1626273555
-swift,structured_task_group,4000000,8,2,3386,1626273555
-swift,structured_task_group,4000000,8,3,3297,1626273555
-swift,structured_task_group,4000000,8,4,3232,1626273555
-swift,structured_task_group,4000000,8,5,3163,1626273555
-# summary,swift,structured_task_group,task_count=8,avg_us=3235,median_us=3232
-swift,structured_task_group,4000000,16,1,2932,1922879457
-swift,structured_task_group,4000000,16,2,3197,1922879457
-swift,structured_task_group,4000000,16,3,3217,1922879457
-swift,structured_task_group,4000000,16,4,3211,1922879457
-swift,structured_task_group,4000000,16,5,3133,1922879457
-# summary,swift,structured_task_group,task_count=16,avg_us=3138,median_us=3197
-swift,structured_task_group,4000000,32,1,2540,519195291
-swift,structured_task_group,4000000,32,2,3048,519195291
-swift,structured_task_group,4000000,32,3,2846,519195291
-swift,structured_task_group,4000000,32,4,2762,519195291
-swift,structured_task_group,4000000,32,5,2507,519195291
-# summary,swift,structured_task_group,task_count=32,avg_us=2740,median_us=2762
-swift,structured_task_group,4000000,64,1,4153,1645254011
-swift,structured_task_group,4000000,64,2,3611,1645254011
-swift,structured_task_group,4000000,64,3,4362,1645254011
-swift,structured_task_group,4000000,64,4,4308,1645254011
-swift,structured_task_group,4000000,64,5,4067,1645254011
-# summary,swift,structured_task_group,task_count=64,avg_us=4100,median_us=4153
+swift,sequential_baseline,4000000,1,1,33913,2051070917
+swift,sequential_baseline,4000000,1,2,43334,2051070917
+swift,sequential_baseline,4000000,1,3,39356,2051070917
+swift,sequential_baseline,4000000,1,4,65987,2051070917
+swift,sequential_baseline,4000000,1,5,23656,2051070917
+# summary,swift,sequential_baseline,task_count=1,avg_us=41249,median_us=39356
+swift,structured_task_group,4000000,1,1,25210,2051070917
+swift,structured_task_group,4000000,1,2,26359,2051070917
+swift,structured_task_group,4000000,1,3,26684,2051070917
+swift,structured_task_group,4000000,1,4,25962,2051070917
+swift,structured_task_group,4000000,1,5,32972,2051070917
+# summary,swift,structured_task_group,task_count=1,avg_us=27437,median_us=26359
+swift,structured_task_group,4000000,2,1,12746,1986132636
+swift,structured_task_group,4000000,2,2,12569,1986132636
+swift,structured_task_group,4000000,2,3,13857,1986132636
+swift,structured_task_group,4000000,2,4,13212,1986132636
+swift,structured_task_group,4000000,2,5,15530,1986132636
+# summary,swift,structured_task_group,task_count=2,avg_us=13582,median_us=13212
+swift,structured_task_group,4000000,4,1,7379,19364670
+swift,structured_task_group,4000000,4,2,7191,19364670
+swift,structured_task_group,4000000,4,3,7625,19364670
+swift,structured_task_group,4000000,4,4,7166,19364670
+swift,structured_task_group,4000000,4,5,6858,19364670
+# summary,swift,structured_task_group,task_count=4,avg_us=7243,median_us=7191
+swift,structured_task_group,4000000,8,1,3839,1580430878
+swift,structured_task_group,4000000,8,2,3988,1580430878
+swift,structured_task_group,4000000,8,3,4290,1580430878
+swift,structured_task_group,4000000,8,4,4181,1580430878
+swift,structured_task_group,4000000,8,5,4762,1580430878
+# summary,swift,structured_task_group,task_count=8,avg_us=4212,median_us=4181
+swift,structured_task_group,4000000,16,1,3702,281981649
+swift,structured_task_group,4000000,16,2,4724,281981649
+swift,structured_task_group,4000000,16,3,5303,281981649
+swift,structured_task_group,4000000,16,4,5016,281981649
+swift,structured_task_group,4000000,16,5,3768,281981649
+# summary,swift,structured_task_group,task_count=16,avg_us=4502,median_us=4724
+swift,structured_task_group,4000000,32,1,3129,176976354
+swift,structured_task_group,4000000,32,2,2688,176976354
+swift,structured_task_group,4000000,32,3,2897,176976354
+swift,structured_task_group,4000000,32,4,3047,176976354
+swift,structured_task_group,4000000,32,5,2776,176976354
+# summary,swift,structured_task_group,task_count=32,avg_us=2907,median_us=2897
+swift,structured_task_group,4000000,64,1,3152,1140757208
+swift,structured_task_group,4000000,64,2,3220,1140757208
+swift,structured_task_group,4000000,64,3,2806,1140757208
+swift,structured_task_group,4000000,64,4,2579,1140757208
+swift,structured_task_group,4000000,64,5,2682,1140757208
+# summary,swift,structured_task_group,task_count=64,avg_us=2887,median_us=2806

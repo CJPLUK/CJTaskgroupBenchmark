@@ -54,20 +54,48 @@ def summarize(rows: list[dict]) -> dict[tuple[str, str, int], dict]:
     return summary
 
 
+def print_table(title: str, headers: list[str], rows: list[list[str]]) -> None:
+    widths = [len(header) for header in headers]
+    for row in rows:
+        for index, cell in enumerate(row):
+            widths[index] = max(widths[index], len(cell))
+
+    border = "+" + "+".join("-" * (width + 2) for width in widths) + "+"
+
+    print(title)
+    print(border)
+    print("| " + " | ".join(header.ljust(widths[index]) for index, header in enumerate(headers)) + " |")
+    print(border)
+    for row in rows:
+        print("| " + " | ".join(cell.ljust(widths[index]) for index, cell in enumerate(row)) + " |")
+    print(border)
+
+
 def print_language_breakdown(summary: dict[tuple[str, str, int], dict]) -> None:
-    print("Per-language benchmark summary")
+    rows: list[list[str]] = []
     for key in sorted(summary):
         language, benchmark, task_count = key
         metrics = summary[key]
-        print(
-            f"- {language:8s} {benchmark:24s} task_count={task_count:2d} "
-            f"median={metrics['median_us']:8d}us avg={metrics['average_us']:8d}us "
-            f"min={metrics['min_us']:8d}us max={metrics['max_us']:8d}us"
+        rows.append(
+            [
+                language,
+                benchmark,
+                str(task_count),
+                f"{metrics['median_us']}us",
+                f"{metrics['average_us']}us",
+                f"{metrics['min_us']}us",
+                f"{metrics['max_us']}us",
+            ]
         )
+    print_table(
+        "Per-language benchmark summary",
+        ["language", "benchmark", "task_count", "median", "avg", "min", "max"],
+        rows,
+    )
 
 
 def print_within_language_speedups(summary: dict[tuple[str, str, int], dict]) -> None:
-    print("\nWithin-language structured speedups")
+    rows: list[list[str]] = []
     languages = sorted({key[0] for key in summary})
     for language in languages:
         sequential_key = "sequential_baseline"
@@ -82,14 +110,24 @@ def print_within_language_speedups(summary: dict[tuple[str, str, int], dict]) ->
             task_count = candidate[2]
             structured = summary[candidate]
             speedup = baseline["median_us"] / structured["median_us"]
-            print(
-                f"- {language:8s} {structured_benchmark:24s} task_count={task_count:2d} "
-                f"speedup_vs_sequential_baseline={speedup:6.2f}x"
+            rows.append(
+                [
+                    language,
+                    structured_benchmark,
+                    str(task_count),
+                    f"{speedup:.2f}x",
+                ]
             )
+    print()
+    print_table(
+        "Within-language structured speedups",
+        ["language", "benchmark", "task_count", "speedup_vs_sequential_baseline"],
+        rows,
+    )
 
 
 def print_cross_language_comparison(summary: dict[tuple[str, str, int], dict]) -> None:
-    print("\nCross-language median comparison")
+    rows: list[list[str]] = []
     cangjie_candidates = {
         key[2]: value
         for key, value in summary.items()
@@ -103,19 +141,29 @@ def print_cross_language_comparison(summary: dict[tuple[str, str, int], dict]) -
 
     common_task_counts = sorted(set(cangjie_candidates) & set(swift_candidates))
     if not common_task_counts:
-        print("- Need both Cangjie and Swift structured benchmark files to compare runtimes.")
+        print()
+        print("Cross-language median comparison")
+        print("Need both Cangjie and Swift structured benchmark files to compare runtimes.")
         return
 
     for task_count in common_task_counts:
         cangjie = cangjie_candidates[task_count]
         swift = swift_candidates[task_count]
-        ratio = cangjie["median_us"] / swift["median_us"]
-        print(
-            f"- task_count={task_count:2d} "
-            f"cangjie_median={cangjie['median_us']:8d}us "
-            f"swift_median={swift['median_us']:8d}us "
-            f"cangjie_over_swift={ratio:6.2f}x"
+        cangjie_speed_vs_swift = swift["median_us"] / cangjie["median_us"]
+        rows.append(
+            [
+                str(task_count),
+                f"{cangjie['median_us']}us",
+                f"{swift['median_us']}us",
+                f"{cangjie_speed_vs_swift:.2f}x",
+            ]
         )
+    print()
+    print_table(
+        "Cross-language median comparison",
+        ["task_count", "cangjie_median", "swift_median", "cangjie_speed_vs_swift"],
+        rows,
+    )
 
 
 def main(argv: list[str]) -> int:

@@ -22,11 +22,23 @@ benchmark executable depends on the parent library through a relative path.
 cjpm run
 ```
 
+To mirror the main-repo CI gate, run:
+
+```powershell
+bash tools/run_cangjie_benchmark.sh
+```
+
 ## Run The Swift Benchmark
 
 ```powershell
 cd swift-benchmark
 swift run
+```
+
+Or use the helper script:
+
+```powershell
+bash tools/run_swift_benchmark.sh
 ```
 
 ## Compare CSV Results
