@@ -1,9 +1,9 @@
 import Dispatch
 import Foundation
 
-private let benchmarkTotalWorkload = 4_000_000
-private let benchmarkWarmupRuns = 1
-private let benchmarkMeasuredRuns = 5
+private let benchmarkTotalWorkload = 40_000_000
+private let benchmarkWarmupRuns = 2
+private let benchmarkMeasuredRuns = 10
 
 private func buildTaskCounts() -> [Int] {
     [1, 2, 4, 8, 16, 32, 64]

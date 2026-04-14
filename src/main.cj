@@ -4,9 +4,9 @@ import cj_taskgroups.*
 import std.collection.ArrayList
 import std.time.DateTime
 
-let benchmarkTotalWorkload: Int64 = 4000000
-let benchmarkWarmupRuns: Int64 = 1
-let benchmarkMeasuredRuns: Int64 = 5
+let benchmarkTotalWorkload: Int64 = 40000000
+let benchmarkWarmupRuns: Int64 = 2
+let benchmarkMeasuredRuns: Int64 = 10
 
 func buildBenchmarkTaskCounts(): ArrayList<Int64> {
     let counts = ArrayList<Int64>()

@@ -1,53 +1,93 @@
 # Structured concurrency CPU benchmark (Cangjie)
-# total_workload=4000000,warmup_runs=1,measured_runs=5
+# total_workload=40000000,warmup_runs=2,measured_runs=10
 language,benchmark,total_workload,task_count,iteration,elapsed_us,checksum
-cangjie,sequential_baseline,4000000,1,1,26655,2051070917
-cangjie,sequential_baseline,4000000,1,2,26916,2051070917
-cangjie,sequential_baseline,4000000,1,3,26444,2051070917
-cangjie,sequential_baseline,4000000,1,4,26693,2051070917
-cangjie,sequential_baseline,4000000,1,5,26250,2051070917
-# summary,cangjie,sequential_baseline,task_count=1,avg_us=26591,median_us=26655
-cangjie,structured_thread_scope,4000000,1,1,25014,2051070917
-cangjie,structured_thread_scope,4000000,1,2,24712,2051070917
-cangjie,structured_thread_scope,4000000,1,3,24827,2051070917
-cangjie,structured_thread_scope,4000000,1,4,25871,2051070917
-cangjie,structured_thread_scope,4000000,1,5,36693,2051070917
-# summary,cangjie,structured_thread_scope,task_count=1,avg_us=27423,median_us=25014
-cangjie,structured_thread_scope,4000000,2,1,31864,1986132636
-cangjie,structured_thread_scope,4000000,2,2,12931,1986132636
-cangjie,structured_thread_scope,4000000,2,3,13428,1986132636
-cangjie,structured_thread_scope,4000000,2,4,13056,1986132636
-cangjie,structured_thread_scope,4000000,2,5,12921,1986132636
-# summary,cangjie,structured_thread_scope,task_count=2,avg_us=16840,median_us=13056
-cangjie,structured_thread_scope,4000000,4,1,6351,19364670
-cangjie,structured_thread_scope,4000000,4,2,6756,19364670
-cangjie,structured_thread_scope,4000000,4,3,6210,19364670
-cangjie,structured_thread_scope,4000000,4,4,6664,19364670
-cangjie,structured_thread_scope,4000000,4,5,6439,19364670
-# summary,cangjie,structured_thread_scope,task_count=4,avg_us=6484,median_us=6439
-cangjie,structured_thread_scope,4000000,8,1,4871,1580430878
-cangjie,structured_thread_scope,4000000,8,2,4881,1580430878
-cangjie,structured_thread_scope,4000000,8,3,4613,1580430878
-cangjie,structured_thread_scope,4000000,8,4,3966,1580430878
-cangjie,structured_thread_scope,4000000,8,5,4468,1580430878
-# summary,cangjie,structured_thread_scope,task_count=8,avg_us=4559,median_us=4613
-cangjie,structured_thread_scope,4000000,16,1,4407,281981649
-cangjie,structured_thread_scope,4000000,16,2,3467,281981649
-cangjie,structured_thread_scope,4000000,16,3,3944,281981649
-cangjie,structured_thread_scope,4000000,16,4,3852,281981649
-cangjie,structured_thread_scope,4000000,16,5,3530,281981649
-# summary,cangjie,structured_thread_scope,task_count=16,avg_us=3840,median_us=3852
-cangjie,structured_thread_scope,4000000,32,1,3202,176976354
-cangjie,structured_thread_scope,4000000,32,2,3241,176976354
-cangjie,structured_thread_scope,4000000,32,3,3235,176976354
-cangjie,structured_thread_scope,4000000,32,4,3222,176976354
-cangjie,structured_thread_scope,4000000,32,5,3221,176976354
-# summary,cangjie,structured_thread_scope,task_count=32,avg_us=3224,median_us=3222
-cangjie,structured_thread_scope,4000000,64,1,2883,1140757208
-cangjie,structured_thread_scope,4000000,64,2,3108,1140757208
-cangjie,structured_thread_scope,4000000,64,3,2703,1140757208
-cangjie,structured_thread_scope,4000000,64,4,3466,1140757208
-cangjie,structured_thread_scope,4000000,64,5,3625,1140757208
-# summary,cangjie,structured_thread_scope,task_count=64,avg_us=3157,median_us=3108
+cangjie,sequential_baseline,40000000,1,1,167931,892338181
+cangjie,sequential_baseline,40000000,1,2,179762,892338181
+cangjie,sequential_baseline,40000000,1,3,170785,892338181
+cangjie,sequential_baseline,40000000,1,4,169304,892338181
+cangjie,sequential_baseline,40000000,1,5,174412,892338181
+cangjie,sequential_baseline,40000000,1,6,163626,892338181
+cangjie,sequential_baseline,40000000,1,7,169684,892338181
+cangjie,sequential_baseline,40000000,1,8,172952,892338181
+cangjie,sequential_baseline,40000000,1,9,170663,892338181
+cangjie,sequential_baseline,40000000,1,10,169157,892338181
+# summary,cangjie,sequential_baseline,task_count=1,avg_us=170827,median_us=170173
+cangjie,structured_thread_scope,40000000,1,1,201523,892338181
+cangjie,structured_thread_scope,40000000,1,2,196134,892338181
+cangjie,structured_thread_scope,40000000,1,3,183909,892338181
+cangjie,structured_thread_scope,40000000,1,4,191956,892338181
+cangjie,structured_thread_scope,40000000,1,5,193868,892338181
+cangjie,structured_thread_scope,40000000,1,6,187198,892338181
+cangjie,structured_thread_scope,40000000,1,7,188094,892338181
+cangjie,structured_thread_scope,40000000,1,8,191355,892338181
+cangjie,structured_thread_scope,40000000,1,9,191038,892338181
+cangjie,structured_thread_scope,40000000,1,10,195038,892338181
+# summary,cangjie,structured_thread_scope,task_count=1,avg_us=192011,median_us=191655
+cangjie,structured_thread_scope,40000000,2,1,106845,472326315
+cangjie,structured_thread_scope,40000000,2,2,108320,472326315
+cangjie,structured_thread_scope,40000000,2,3,108037,472326315
+cangjie,structured_thread_scope,40000000,2,4,106367,472326315
+cangjie,structured_thread_scope,40000000,2,5,105471,472326315
+cangjie,structured_thread_scope,40000000,2,6,105594,472326315
+cangjie,structured_thread_scope,40000000,2,7,103594,472326315
+cangjie,structured_thread_scope,40000000,2,8,99795,472326315
+cangjie,structured_thread_scope,40000000,2,9,101247,472326315
+cangjie,structured_thread_scope,40000000,2,10,103675,472326315
+# summary,cangjie,structured_thread_scope,task_count=2,avg_us=104894,median_us=105532
+cangjie,structured_thread_scope,40000000,4,1,59229,1025772912
+cangjie,structured_thread_scope,40000000,4,2,58833,1025772912
+cangjie,structured_thread_scope,40000000,4,3,59084,1025772912
+cangjie,structured_thread_scope,40000000,4,4,59361,1025772912
+cangjie,structured_thread_scope,40000000,4,5,64084,1025772912
+cangjie,structured_thread_scope,40000000,4,6,61479,1025772912
+cangjie,structured_thread_scope,40000000,4,7,56769,1025772912
+cangjie,structured_thread_scope,40000000,4,8,60851,1025772912
+cangjie,structured_thread_scope,40000000,4,9,60310,1025772912
+cangjie,structured_thread_scope,40000000,4,10,63288,1025772912
+# summary,cangjie,structured_thread_scope,task_count=4,avg_us=60328,median_us=59835
+cangjie,structured_thread_scope,40000000,8,1,40550,396960620
+cangjie,structured_thread_scope,40000000,8,2,37534,396960620
+cangjie,structured_thread_scope,40000000,8,3,39617,396960620
+cangjie,structured_thread_scope,40000000,8,4,40383,396960620
+cangjie,structured_thread_scope,40000000,8,5,32978,396960620
+cangjie,structured_thread_scope,40000000,8,6,39732,396960620
+cangjie,structured_thread_scope,40000000,8,7,34633,396960620
+cangjie,structured_thread_scope,40000000,8,8,37835,396960620
+cangjie,structured_thread_scope,40000000,8,9,37706,396960620
+cangjie,structured_thread_scope,40000000,8,10,34865,396960620
+# summary,cangjie,structured_thread_scope,task_count=8,avg_us=37583,median_us=37770
+cangjie,structured_thread_scope,40000000,16,1,37824,548664169
+cangjie,structured_thread_scope,40000000,16,2,35427,548664169
+cangjie,structured_thread_scope,40000000,16,3,39279,548664169
+cangjie,structured_thread_scope,40000000,16,4,41665,548664169
+cangjie,structured_thread_scope,40000000,16,5,44323,548664169
+cangjie,structured_thread_scope,40000000,16,6,38602,548664169
+cangjie,structured_thread_scope,40000000,16,7,38130,548664169
+cangjie,structured_thread_scope,40000000,16,8,38943,548664169
+cangjie,structured_thread_scope,40000000,16,9,42391,548664169
+cangjie,structured_thread_scope,40000000,16,10,41503,548664169
+# summary,cangjie,structured_thread_scope,task_count=16,avg_us=39808,median_us=39111
+cangjie,structured_thread_scope,40000000,32,1,36871,1587305979
+cangjie,structured_thread_scope,40000000,32,2,36550,1587305979
+cangjie,structured_thread_scope,40000000,32,3,38061,1587305979
+cangjie,structured_thread_scope,40000000,32,4,39059,1587305979
+cangjie,structured_thread_scope,40000000,32,5,36837,1587305979
+cangjie,structured_thread_scope,40000000,32,6,35834,1587305979
+cangjie,structured_thread_scope,40000000,32,7,38779,1587305979
+cangjie,structured_thread_scope,40000000,32,8,41711,1587305979
+cangjie,structured_thread_scope,40000000,32,9,41671,1587305979
+cangjie,structured_thread_scope,40000000,32,10,41556,1587305979
+# summary,cangjie,structured_thread_scope,task_count=32,avg_us=38692,median_us=38420
+cangjie,structured_thread_scope,40000000,64,1,39487,1249474166
+cangjie,structured_thread_scope,40000000,64,2,39360,1249474166
+cangjie,structured_thread_scope,40000000,64,3,39174,1249474166
+cangjie,structured_thread_scope,40000000,64,4,39390,1249474166
+cangjie,structured_thread_scope,40000000,64,5,38935,1249474166
+cangjie,structured_thread_scope,40000000,64,6,34526,1249474166
+cangjie,structured_thread_scope,40000000,64,7,36360,1249474166
+cangjie,structured_thread_scope,40000000,64,8,36498,1249474166
+cangjie,structured_thread_scope,40000000,64,9,38031,1249474166
+cangjie,structured_thread_scope,40000000,64,10,37230,1249474166
+# summary,cangjie,structured_thread_scope,task_count=64,avg_us=37899,median_us=38483
 
 cjpm run finished
