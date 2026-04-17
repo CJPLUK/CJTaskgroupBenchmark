@@ -67,20 +67,28 @@ func runStructuredCpuBenchmark(taskCount: Int64): Int64 {
     }
 }
 
+let spawnOverheadRepeat: Int64 = 1000
+
 func runSpawnOverhead(taskCount: Int64): Int64 {
-    return ThreadScope<Int64, Int64> {
-        group =>
-            var i: Int64 = 0
-            while (i < taskCount) {
-                group.add { 0 }
-                i += 1
-            }
-            var sum: Int64 = 0
-            for (value in group) {
-                sum += value
-            }
-            sum
+    var result: Int64 = 0
+    var rep: Int64 = 0
+    while (rep < spawnOverheadRepeat) {
+        result = ThreadScope<Int64, Int64> {
+            group =>
+                var i: Int64 = 0
+                while (i < taskCount) {
+                    group.add { 0 }
+                    i += 1
+                }
+                var sum: Int64 = 0
+                for (value in group) {
+                    sum += value
+                }
+                sum
+        }
+        rep += 1
     }
+    return result
 }
 
 func averageMicros(samples: ArrayList<Int64>): Int64 {

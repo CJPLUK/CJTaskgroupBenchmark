@@ -51,17 +51,23 @@ private func runStructured(taskCount: Int) async -> Int64 {
     }
 }
 
+private let spawnOverheadRepeat = 1000
+
 private func runSpawnOverhead(taskCount: Int) async -> Int64 {
-    await withTaskGroup(of: Int64.self, returning: Int64.self) { group in
-        for _ in 0 ..< taskCount {
-            group.addTask { 0 }
+    var result: Int64 = 0
+    for _ in 0 ..< spawnOverheadRepeat {
+        result = await withTaskGroup(of: Int64.self, returning: Int64.self) { group in
+            for _ in 0 ..< taskCount {
+                group.addTask { 0 }
+            }
+            var sum: Int64 = 0
+            for await value in group {
+                sum += value
+            }
+            return sum
         }
-        var sum: Int64 = 0
-        for await value in group {
-            sum += value
-        }
-        return sum
     }
+    return result
 }
 
 private func averageMicros(_ samples: [Int64]) -> Int64 {
