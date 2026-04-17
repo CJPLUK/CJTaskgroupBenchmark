@@ -36,6 +36,9 @@ def load_rows(path: Path) -> list[dict]:
     return rows
 
 
+TRIM_COUNT = 2
+
+
 def summarize(rows: list[dict]) -> dict[tuple[str, str, int], dict]:
     grouped: dict[tuple[str, str, int], list[int]] = defaultdict(list)
     for row in rows:
@@ -44,12 +47,18 @@ def summarize(rows: list[dict]) -> dict[tuple[str, str, int], dict]:
 
     summary: dict[tuple[str, str, int], dict] = {}
     for key, samples in grouped.items():
+        sorted_samples = sorted(samples)
+        if len(sorted_samples) > TRIM_COUNT * 2:
+            trimmed = sorted_samples[TRIM_COUNT : len(sorted_samples) - TRIM_COUNT]
+        else:
+            trimmed = sorted_samples
         summary[key] = {
             "count": len(samples),
-            "average_us": int(sum(samples) / len(samples)),
-            "median_us": int(statistics.median(samples)),
-            "min_us": min(samples),
-            "max_us": max(samples),
+            "trimmed_count": len(trimmed),
+            "average_us": int(sum(trimmed) / len(trimmed)),
+            "median_us": int(statistics.median(trimmed)),
+            "min_us": min(trimmed),
+            "max_us": max(trimmed),
         }
     return summary
 
@@ -103,7 +112,7 @@ def print_within_language_speedups(summary: dict[tuple[str, str, int], dict]) ->
         if baseline is None:
             continue
         structured_candidates = [
-            key for key in summary if key[0] == language and key[1] != sequential_key
+            key for key in summary if key[0] == language and key[1] != sequential_key and key[1] != "spawn_overhead"
         ]
         for candidate in sorted(structured_candidates, key=lambda item: (item[1], item[2])):
             structured_benchmark = candidate[1]
@@ -126,44 +135,70 @@ def print_within_language_speedups(summary: dict[tuple[str, str, int], dict]) ->
     )
 
 
-def print_cross_language_comparison(summary: dict[tuple[str, str, int], dict]) -> None:
-    rows: list[list[str]] = []
-    cangjie_candidates = {
-        key[2]: value
-        for key, value in summary.items()
-        if key[0] == "cangjie" and key[1] != "sequential_baseline"
-    }
-    swift_candidates = {
-        key[2]: value
-        for key, value in summary.items()
-        if key[0] == "swift" and key[1] != "sequential_baseline"
-    }
+BENCHMARK_PAIRS = [
+    ("sequential_baseline", "sequential_baseline", "Sequential Baseline"),
+    ("structured_thread_scope", "structured_task_group", "Structured Concurrency (CPU)"),
+    ("spawn_overhead", "spawn_overhead", "Spawn Overhead (empty tasks)"),
+]
 
-    common_task_counts = sorted(set(cangjie_candidates) & set(swift_candidates))
-    if not common_task_counts:
+
+def print_cross_language_comparison(summary: dict[tuple[str, str, int], dict]) -> None:
+    cangjie_keys = {key for key in summary if key[0] == "cangjie"}
+    swift_keys = {key for key in summary if key[0] == "swift"}
+
+    if not cangjie_keys or not swift_keys:
         print()
         print("Cross-language median comparison")
-        print("Need both Cangjie and Swift structured benchmark files to compare runtimes.")
+        print("Need both Cangjie and Swift benchmark files to compare runtimes.")
         return
 
-    for task_count in common_task_counts:
-        cangjie = cangjie_candidates[task_count]
-        swift = swift_candidates[task_count]
-        cangjie_speed_vs_swift = swift["median_us"] / cangjie["median_us"]
-        rows.append(
-            [
-                str(task_count),
-                f"{cangjie['median_us']}us",
-                f"{swift['median_us']}us",
-                f"{cangjie_speed_vs_swift:.2f}x",
-            ]
+    for cj_name, sw_name, label in BENCHMARK_PAIRS:
+        cj_data = {
+            key[2]: value
+            for key, value in summary.items()
+            if key[0] == "cangjie" and key[1] == cj_name
+        }
+        sw_data = {
+            key[2]: value
+            for key, value in summary.items()
+            if key[0] == "swift" and key[1] == sw_name
+        }
+
+        common_task_counts = sorted(set(cj_data) & set(sw_data))
+        if not common_task_counts:
+            continue
+
+        rows: list[list[str]] = []
+        for task_count in common_task_counts:
+            cj = cj_data[task_count]
+            sw = sw_data[task_count]
+            if cj["median_us"] > 0 and sw["median_us"] > 0:
+                ratio = sw["median_us"] / cj["median_us"]
+                delta_pct = (cj["median_us"] - sw["median_us"]) / sw["median_us"] * 100
+                if abs(delta_pct) < 3:
+                    winner = "tied"
+                elif delta_pct < 0:
+                    winner = f"CJ {abs(delta_pct):.1f}% faster"
+                else:
+                    winner = f"Swift {delta_pct:.1f}% faster"
+            else:
+                ratio = 0
+                winner = "n/a"
+            rows.append(
+                [
+                    str(task_count),
+                    f"{cj['median_us']}us",
+                    f"{sw['median_us']}us",
+                    f"{ratio:.2f}x" if ratio else "n/a",
+                    winner,
+                ]
+            )
+        print()
+        print_table(
+            f"Cross-language: {label} (cangjie={cj_name}, swift={sw_name})",
+            ["task_count", "cangjie_median", "swift_median", "ratio", "winner"],
+            rows,
         )
-    print()
-    print_table(
-        "Cross-language median comparison",
-        ["task_count", "cangjie_median", "swift_median", "cangjie_speed_vs_swift"],
-        rows,
-    )
 
 
 def main(argv: list[str]) -> int:

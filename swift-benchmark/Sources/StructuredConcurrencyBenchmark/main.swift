@@ -2,8 +2,10 @@ import Dispatch
 import Foundation
 
 private let benchmarkTotalWorkload = 40_000_000
-private let benchmarkWarmupRuns = 2
-private let benchmarkMeasuredRuns = 10
+private let benchmarkWarmupRuns = 5
+private let benchmarkMeasuredRuns = 15
+private let benchmarkCooldownMs: UInt32 = 500
+private let benchmarkTrimCount = 2
 
 private func buildTaskCounts() -> [Int] {
     [1, 2, 4, 8, 16, 32, 64]
@@ -49,8 +51,29 @@ private func runStructured(taskCount: Int) async -> Int64 {
     }
 }
 
+private func runSpawnOverhead(taskCount: Int) async -> Int64 {
+    await withTaskGroup(of: Int64.self, returning: Int64.self) { group in
+        for _ in 0 ..< taskCount {
+            group.addTask { 0 }
+        }
+        var sum: Int64 = 0
+        for await value in group {
+            sum += value
+        }
+        return sum
+    }
+}
+
 private func averageMicros(_ samples: [Int64]) -> Int64 {
     samples.reduce(0, +) / Int64(samples.count)
+}
+
+private func stddevMicros(_ samples: [Int64], avg: Int64) -> Int64 {
+    let sumSq = samples.reduce(0.0) { acc, s in
+        let diff = Double(s - avg)
+        return acc + diff * diff
+    }
+    return Int64(Foundation.sqrt(sumSq / Double(samples.count)))
 }
 
 private func medianMicros(_ samples: [Int64]) -> Int64 {
@@ -82,6 +105,8 @@ private func runSingleCase(
     taskCount: Int,
     run: @Sendable @escaping () async -> Int64
 ) async {
+    usleep(benchmarkCooldownMs * 1_000)
+
     for _ in 0 ..< benchmarkWarmupRuns {
         _ = await run()
     }
@@ -98,7 +123,15 @@ private func runSingleCase(
         samples.append(elapsedMicros)
     }
 
-    print("# summary,swift,\(benchmarkName),task_count=\(taskCount),avg_us=\(averageMicros(samples)),median_us=\(medianMicros(samples))")
+    let sorted = samples.sorted()
+    let trimmed = Array(sorted[benchmarkTrimCount ..< (sorted.count - benchmarkTrimCount)])
+
+    let avg = averageMicros(trimmed)
+    let med = medianMicros(trimmed)
+    let sd = stddevMicros(trimmed, avg: avg)
+    let mn = trimmed.min()!
+    let mx = trimmed.max()!
+    print("# summary,swift,\(benchmarkName),task_count=\(taskCount),avg_us=\(avg),median_us=\(med),stddev_us=\(sd),min_us=\(mn),max_us=\(mx)")
 }
 
 private func runSeries(
@@ -116,7 +149,7 @@ private func runSeries(
 struct StructuredConcurrencyBenchmarkCLI {
     static func main() async {
         print("# Structured concurrency CPU benchmark (Swift)")
-        print("# total_workload=\(benchmarkTotalWorkload),warmup_runs=\(benchmarkWarmupRuns),measured_runs=\(benchmarkMeasuredRuns)")
+        print("# total_workload=\(benchmarkTotalWorkload),warmup_runs=\(benchmarkWarmupRuns),measured_runs=\(benchmarkMeasuredRuns),cooldown_ms=\(benchmarkCooldownMs)")
         print("language,benchmark,total_workload,task_count,iteration,elapsed_us,checksum")
 
         await runSingleCase(benchmarkName: "sequential_baseline", taskCount: 1) {
@@ -124,6 +157,9 @@ struct StructuredConcurrencyBenchmarkCLI {
         }
         await runSeries(benchmarkName: "structured_task_group") { taskCount in
             await runStructured(taskCount: taskCount)
+        }
+        await runSeries(benchmarkName: "spawn_overhead") { taskCount in
+            await runSpawnOverhead(taskCount: taskCount)
         }
     }
 }

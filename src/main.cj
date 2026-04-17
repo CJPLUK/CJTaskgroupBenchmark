@@ -3,10 +3,13 @@ package cj_taskgroup_benchmark
 import cj_taskgroups.*
 import std.collection.ArrayList
 import std.time.DateTime
+import std.math.sqrt
 
 let benchmarkTotalWorkload: Int64 = 40000000
-let benchmarkWarmupRuns: Int64 = 2
-let benchmarkMeasuredRuns: Int64 = 10
+let benchmarkWarmupRuns: Int64 = 5
+let benchmarkMeasuredRuns: Int64 = 15
+let benchmarkCooldownMs: Int64 = 500
+let benchmarkTrimCount: Int64 = 2
 
 func buildBenchmarkTaskCounts(): ArrayList<Int64> {
     let counts = ArrayList<Int64>()
@@ -64,12 +67,37 @@ func runStructuredCpuBenchmark(taskCount: Int64): Int64 {
     }
 }
 
+func runSpawnOverhead(taskCount: Int64): Int64 {
+    return ThreadScope<Int64, Int64> {
+        group =>
+            var i: Int64 = 0
+            while (i < taskCount) {
+                group.add { 0 }
+                i += 1
+            }
+            var sum: Int64 = 0
+            for (value in group) {
+                sum += value
+            }
+            sum
+    }
+}
+
 func averageMicros(samples: ArrayList<Int64>): Int64 {
-    var total = 0
+    var total: Int64 = 0
     for (sample in samples) {
         total += sample
     }
     return total / samples.size
+}
+
+func stddevMicros(samples: ArrayList<Int64>, avg: Int64): Int64 {
+    var sumSq: Float64 = 0.0
+    for (sample in samples) {
+        let diff = Float64(sample - avg)
+        sumSq += diff * diff
+    }
+    return Int64(sqrt(sumSq / Float64(samples.size)))
 }
 
 func sortAscending(values: ArrayList<Int64>): ArrayList<Int64> {
@@ -99,6 +127,22 @@ func medianMicros(samples: ArrayList<Int64>): Int64 {
     return sorted[middle]
 }
 
+func minMicros(samples: ArrayList<Int64>): Int64 {
+    var m = samples[0]
+    for (s in samples) {
+        if (s < m) { m = s }
+    }
+    return m
+}
+
+func maxMicros(samples: ArrayList<Int64>): Int64 {
+    var m = samples[0]
+    for (s in samples) {
+        if (s > m) { m = s }
+    }
+    return m
+}
+
 func measureBenchmark(benchmarkName: String, taskCount: Int64, iteration: Int64, run: () -> Int64): Int64 {
     let start = DateTime.now()
     let checksum = run()
@@ -108,6 +152,8 @@ func measureBenchmark(benchmarkName: String, taskCount: Int64, iteration: Int64,
 }
 
 func runSingleCase(benchmarkName: String, taskCount: Int64, run: () -> Int64) {
+    sleep(Duration.millisecond * benchmarkCooldownMs)
+
     var warmupIndex = 0
     while (warmupIndex < benchmarkWarmupRuns) {
         run()
@@ -122,7 +168,20 @@ func runSingleCase(benchmarkName: String, taskCount: Int64, run: () -> Int64) {
         samples.add(elapsedMicros)
     }
 
-    println("# summary,cangjie,${benchmarkName},task_count=${taskCount},avg_us=${averageMicros(samples)},median_us=${medianMicros(samples)}")
+    let sorted = sortAscending(samples)
+    let trimmed = ArrayList<Int64>()
+    var ti: Int64 = benchmarkTrimCount
+    while (ti < sorted.size - benchmarkTrimCount) {
+        trimmed.add(sorted[ti])
+        ti += 1
+    }
+
+    let avg = averageMicros(trimmed)
+    let med = medianMicros(trimmed)
+    let sd = stddevMicros(trimmed, avg)
+    let mn = minMicros(trimmed)
+    let mx = maxMicros(trimmed)
+    println("# summary,cangjie,${benchmarkName},task_count=${taskCount},avg_us=${avg},median_us=${med},stddev_us=${sd},min_us=${mn},max_us=${mx}")
 }
 
 func runSeries(benchmarkName: String, run: (Int64) -> Int64) {
@@ -135,7 +194,7 @@ func runSeries(benchmarkName: String, run: (Int64) -> Int64) {
 
 main(): Int64 {
     println("# Structured concurrency CPU benchmark (Cangjie)")
-    println("# total_workload=${benchmarkTotalWorkload},warmup_runs=${benchmarkWarmupRuns},measured_runs=${benchmarkMeasuredRuns}")
+    println("# total_workload=${benchmarkTotalWorkload},warmup_runs=${benchmarkWarmupRuns},measured_runs=${benchmarkMeasuredRuns},cooldown_ms=${benchmarkCooldownMs}")
     println("language,benchmark,total_workload,task_count,iteration,elapsed_us,checksum")
 
     runSingleCase("sequential_baseline", 1) {
@@ -143,6 +202,9 @@ main(): Int64 {
     }
     runSeries("structured_thread_scope", { taskCount =>
         runStructuredCpuBenchmark(taskCount)
+    })
+    runSeries("spawn_overhead", { taskCount =>
+        runSpawnOverhead(taskCount)
     })
     return 0
 }
