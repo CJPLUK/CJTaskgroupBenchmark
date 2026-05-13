@@ -57,8 +57,13 @@ private func runSpawnOverhead(taskCount: Int) async -> Int64 {
     var result: Int64 = 0
     for _ in 0 ..< spawnOverheadRepeat {
         result = await withTaskGroup(of: Int64.self, returning: Int64.self) { group in
-            for _ in 0 ..< taskCount {
-                group.addTask { 0 }
+            for taskIndex in 0 ..< taskCount {
+                // Capture the loop counter so each task returns a distinct
+                // non-constant value; otherwise the compiler may fold the
+                // sum to 0 and elide the spawn entirely (DCE), giving a
+                // misleadingly tiny benchmark result.
+                let currentTaskIndex = taskIndex
+                group.addTask { Int64(currentTaskIndex) }
             }
             var sum: Int64 = 0
             for await value in group {
@@ -93,6 +98,7 @@ private func medianMicros(_ samples: [Int64]) -> Int64 {
 
 private func measureBenchmark(
     benchmarkName: String,
+    workload: Int,
     taskCount: Int,
     iteration: Int,
     run: @Sendable () async -> Int64
@@ -102,12 +108,13 @@ private func measureBenchmark(
     let end = DispatchTime.now().uptimeNanoseconds
     let elapsedMicros = Int64((end - start) / 1_000)
 
-    print("swift,\(benchmarkName),\(benchmarkTotalWorkload),\(taskCount),\(iteration),\(elapsedMicros),\(checksum)")
+    print("swift,\(benchmarkName),\(workload),\(taskCount),\(iteration),\(elapsedMicros),\(checksum)")
     return elapsedMicros
 }
 
 private func runSingleCase(
     benchmarkName: String,
+    workload: Int,
     taskCount: Int,
     run: @Sendable @escaping () async -> Int64
 ) async {
@@ -121,6 +128,7 @@ private func runSingleCase(
     for iteration in 1 ... benchmarkMeasuredRuns {
         let elapsedMicros = await measureBenchmark(
             benchmarkName: benchmarkName,
+            workload: workload,
             taskCount: taskCount,
             iteration: iteration
         ) {
@@ -130,22 +138,31 @@ private func runSingleCase(
     }
 
     let sorted = samples.sorted()
-    let trimmed = Array(sorted[benchmarkTrimCount ..< (sorted.count - benchmarkTrimCount)])
+    // Only trim if we have strictly more samples than 2 * trim_count.
+    // Otherwise fall back to using all samples; trimming a too-small set
+    // would produce degenerate (possibly empty) statistics.
+    let trimmed: [Int64]
+    if sorted.count > 2 * benchmarkTrimCount {
+        trimmed = Array(sorted[benchmarkTrimCount ..< (sorted.count - benchmarkTrimCount)])
+    } else {
+        trimmed = sorted
+    }
 
     let avg = averageMicros(trimmed)
     let med = medianMicros(trimmed)
     let sd = stddevMicros(trimmed, avg: avg)
-    let mn = trimmed.min()!
-    let mx = trimmed.max()!
+    let mn = trimmed.min() ?? 0
+    let mx = trimmed.max() ?? 0
     print("# summary,swift,\(benchmarkName),task_count=\(taskCount),avg_us=\(avg),median_us=\(med),stddev_us=\(sd),min_us=\(mn),max_us=\(mx)")
 }
 
 private func runSeries(
     benchmarkName: String,
+    workload: Int,
     run: @Sendable @escaping (Int) async -> Int64
 ) async {
     for taskCount in buildTaskCounts() {
-        await runSingleCase(benchmarkName: benchmarkName, taskCount: taskCount) {
+        await runSingleCase(benchmarkName: benchmarkName, workload: workload, taskCount: taskCount) {
             await run(taskCount)
         }
     }
@@ -155,16 +172,19 @@ private func runSeries(
 struct StructuredConcurrencyBenchmarkCLI {
     static func main() async {
         print("# Structured concurrency CPU benchmark (Swift)")
-        print("# total_workload=\(benchmarkTotalWorkload),warmup_runs=\(benchmarkWarmupRuns),measured_runs=\(benchmarkMeasuredRuns),cooldown_ms=\(benchmarkCooldownMs)")
+        print("# total_workload=\(benchmarkTotalWorkload),warmup_runs=\(benchmarkWarmupRuns),measured_runs=\(benchmarkMeasuredRuns),cooldown_ms=\(benchmarkCooldownMs),spawn_overhead_repeat=\(spawnOverheadRepeat)")
         print("language,benchmark,total_workload,task_count,iteration,elapsed_us,checksum")
 
-        await runSingleCase(benchmarkName: "sequential_baseline", taskCount: 1) {
+        // CPU benchmarks: workload reflects the actual amount of work done.
+        await runSingleCase(benchmarkName: "sequential_baseline", workload: benchmarkTotalWorkload, taskCount: 1) {
             runSequentialBaseline()
         }
-        await runSeries(benchmarkName: "structured_task_group") { taskCount in
+        await runSeries(benchmarkName: "structured_task_group", workload: benchmarkTotalWorkload) { taskCount in
             await runStructured(taskCount: taskCount)
         }
-        await runSeries(benchmarkName: "spawn_overhead") { taskCount in
+        // spawn_overhead does no CPU work; report workload=0 to avoid
+        // misleading downstream analyses that scale by workload.
+        await runSeries(benchmarkName: "spawn_overhead", workload: 0) { taskCount in
             await runSpawnOverhead(taskCount: taskCount)
         }
     }

@@ -77,7 +77,12 @@ func runSpawnOverhead(taskCount: Int64): Int64 {
             group =>
                 var i: Int64 = 0
                 while (i < taskCount) {
-                    group.add { 0 }
+                    // Capture the loop counter so each task returns a distinct
+                    // non-constant value; otherwise the compiler may fold the
+                    // sum to 0 and elide the spawn entirely (DCE), giving a
+                    // misleadingly tiny benchmark result.
+                    let currentTaskIndex = i
+                    group.add { currentTaskIndex }
                     i += 1
                 }
                 var sum: Int64 = 0
@@ -136,6 +141,7 @@ func medianMicros(samples: ArrayList<Int64>): Int64 {
 }
 
 func minMicros(samples: ArrayList<Int64>): Int64 {
+    if (samples.size == 0) { return 0 }
     var m = samples[0]
     for (s in samples) {
         if (s < m) { m = s }
@@ -144,6 +150,7 @@ func minMicros(samples: ArrayList<Int64>): Int64 {
 }
 
 func maxMicros(samples: ArrayList<Int64>): Int64 {
+    if (samples.size == 0) { return 0 }
     var m = samples[0]
     for (s in samples) {
         if (s > m) { m = s }
@@ -151,15 +158,15 @@ func maxMicros(samples: ArrayList<Int64>): Int64 {
     return m
 }
 
-func measureBenchmark(benchmarkName: String, taskCount: Int64, iteration: Int64, run: () -> Int64): Int64 {
+func measureBenchmark(benchmarkName: String, workload: Int64, taskCount: Int64, iteration: Int64, run: () -> Int64): Int64 {
     let start = DateTime.now()
     let checksum = run()
     let elapsedMicros = (DateTime.now() - start).toMicroseconds()
-    println("cangjie,${benchmarkName},${benchmarkTotalWorkload},${taskCount},${iteration},${elapsedMicros},${checksum}")
+    println("cangjie,${benchmarkName},${workload},${taskCount},${iteration},${elapsedMicros},${checksum}")
     return elapsedMicros
 }
 
-func runSingleCase(benchmarkName: String, taskCount: Int64, run: () -> Int64) {
+func runSingleCase(benchmarkName: String, workload: Int64, taskCount: Int64, run: () -> Int64) {
     sleep(Duration.millisecond * benchmarkCooldownMs)
 
     var warmupIndex = 0
@@ -170,18 +177,27 @@ func runSingleCase(benchmarkName: String, taskCount: Int64, run: () -> Int64) {
 
     let samples = ArrayList<Int64>()
     for (iteration in 1..=benchmarkMeasuredRuns) {
-        let elapsedMicros = measureBenchmark(benchmarkName, taskCount, iteration) {
+        let elapsedMicros = measureBenchmark(benchmarkName, workload, taskCount, iteration) {
             run()
         }
         samples.add(elapsedMicros)
     }
 
     let sorted = sortAscending(samples)
+    // Only trim if we have strictly more samples than 2 * trim_count.
+    // Otherwise trimming would produce a degenerate (possibly empty) set
+    // and the downstream stats would be meaningless or crash.
     let trimmed = ArrayList<Int64>()
-    var ti: Int64 = benchmarkTrimCount
-    while (ti < sorted.size - benchmarkTrimCount) {
-        trimmed.add(sorted[ti])
-        ti += 1
+    if (sorted.size > 2 * benchmarkTrimCount) {
+        var ti: Int64 = benchmarkTrimCount
+        while (ti < sorted.size - benchmarkTrimCount) {
+            trimmed.add(sorted[ti])
+            ti += 1
+        }
+    } else {
+        for (s in sorted) {
+            trimmed.add(s)
+        }
     }
 
     let avg = averageMicros(trimmed)
@@ -192,9 +208,9 @@ func runSingleCase(benchmarkName: String, taskCount: Int64, run: () -> Int64) {
     println("# summary,cangjie,${benchmarkName},task_count=${taskCount},avg_us=${avg},median_us=${med},stddev_us=${sd},min_us=${mn},max_us=${mx}")
 }
 
-func runSeries(benchmarkName: String, run: (Int64) -> Int64) {
+func runSeries(benchmarkName: String, workload: Int64, run: (Int64) -> Int64) {
     for (taskCount in buildBenchmarkTaskCounts()) {
-        runSingleCase(benchmarkName, taskCount) {
+        runSingleCase(benchmarkName, workload, taskCount) {
             run(taskCount)
         }
     }
@@ -202,16 +218,19 @@ func runSeries(benchmarkName: String, run: (Int64) -> Int64) {
 
 main(): Int64 {
     println("# Structured concurrency CPU benchmark (Cangjie)")
-    println("# total_workload=${benchmarkTotalWorkload},warmup_runs=${benchmarkWarmupRuns},measured_runs=${benchmarkMeasuredRuns},cooldown_ms=${benchmarkCooldownMs}")
+    println("# total_workload=${benchmarkTotalWorkload},warmup_runs=${benchmarkWarmupRuns},measured_runs=${benchmarkMeasuredRuns},cooldown_ms=${benchmarkCooldownMs},spawn_overhead_repeat=${spawnOverheadRepeat}")
     println("language,benchmark,total_workload,task_count,iteration,elapsed_us,checksum")
 
-    runSingleCase("sequential_baseline", 1) {
+    // CPU benchmarks: total_workload reflects the actual amount of work done.
+    runSingleCase("sequential_baseline", benchmarkTotalWorkload, 1) {
         runSequentialCpuBenchmark()
     }
-    runSeries("structured_thread_scope", { taskCount =>
+    runSeries("structured_thread_scope", benchmarkTotalWorkload, { taskCount =>
         runStructuredCpuBenchmark(taskCount)
     })
-    runSeries("spawn_overhead", { taskCount =>
+    // spawn_overhead does no CPU work; report total_workload=0 to avoid
+    // misleading downstream analyses that scale by workload.
+    runSeries("spawn_overhead", 0, { taskCount =>
         runSpawnOverhead(taskCount)
     })
     return 0
