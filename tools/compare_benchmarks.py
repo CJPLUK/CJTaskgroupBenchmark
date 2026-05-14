@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 
 import csv
+import os
 import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
+
+# Tied threshold (percent). Bare-metal stddev is well under 1%, so 3% is fine
+# locally. CI runners (shared VMs) have 3-7% stddev; auto-bump to 15% there
+# to suppress noise-driven false winners. GitHub Actions sets CI=true.
+TIED_THRESHOLD_PCT = 15.0 if os.environ.get("CI") == "true" else 3.0
 
 
 def load_rows(path: Path) -> list[dict]:
@@ -175,7 +181,7 @@ def print_cross_language_comparison(summary: dict[tuple[str, str, int], dict]) -
             if cj["median_us"] > 0 and sw["median_us"] > 0:
                 ratio = sw["median_us"] / cj["median_us"]
                 delta_pct = (cj["median_us"] - sw["median_us"]) / sw["median_us"] * 100
-                if abs(delta_pct) < 3:
+                if abs(delta_pct) < TIED_THRESHOLD_PCT:
                     winner = "tied"
                 elif delta_pct < 0:
                     winner = f"CJ {abs(delta_pct):.1f}% faster"
