@@ -148,7 +148,7 @@ def print_within_language_speedups(summary: dict[tuple[str, str, int], dict]) ->
 BENCHMARK_PAIRS = [
     ("sequential_baseline", "sequential_baseline", "Sequential Baseline"),
     ("structured_thread_scope", "structured_task_group", "Structured Concurrency (CPU)"),
-    ("pipeline_skewed", "pipeline_skewed", "Pipeline (1 heavy + N-1 light, serial downstream)"),
+    ("pipeline_skewed", "pipeline_skewed", "Pipeline (1 heavy + N-1 light)"),
     ("spawn_overhead", "spawn_overhead", "Spawn Overhead (empty tasks)"),
 ]
 
