@@ -51,6 +51,40 @@ private func runStructured(taskCount: Int) async -> Int64 {
     }
 }
 
+// Pipeline benchmark: one heavy task, many light tasks, each result triggers
+// a small downstream serial computation. Swift's TaskGroup is always
+// completion-order, so this is the "baseline" that Cangjie's iteration-order
+// branch is trying to match.
+private let pipelineHeavyWorkload = 30_000_000
+private let pipelineLightWorkload = 500_000
+private let pipelineDownstreamWorkload = 500_000
+
+private func runPipelineSkewed(taskCount: Int) async -> Int64 {
+    var checksum: Int64 = 0
+
+    await withTaskGroup(of: Int64.self) { group in
+        for taskIndex in 0 ..< taskCount {
+            let currentTaskIndex = taskIndex
+            let workload = currentTaskIndex == 0
+                ? pipelineHeavyWorkload
+                : pipelineLightWorkload
+            group.addTask {
+                runCPUChunk(iterations: workload, taskIndex: currentTaskIndex)
+            }
+        }
+
+        for await value in group {
+            let downstream = runCPUChunk(
+                iterations: pipelineDownstreamWorkload,
+                taskIndex: Int(value % 16)
+            )
+            checksum = (checksum + downstream) % 2_147_483_647
+        }
+    }
+
+    return checksum
+}
+
 private let spawnOverheadRepeat = 1000
 
 private func runSpawnOverhead(taskCount: Int) async -> Int64 {
@@ -181,6 +215,12 @@ struct StructuredConcurrencyBenchmarkCLI {
         }
         await runSeries(benchmarkName: "structured_task_group", workload: benchmarkTotalWorkload) { taskCount in
             await runStructured(taskCount: taskCount)
+        }
+        // pipeline_skewed: 1 heavy + (N-1) light tasks, each result triggers a
+        // small serial downstream step. Demonstrates completion-order benefit.
+        let pipelineWorkload = pipelineHeavyWorkload + pipelineLightWorkload * 7
+        await runSeries(benchmarkName: "pipeline_skewed", workload: pipelineWorkload) { taskCount in
+            await runPipelineSkewed(taskCount: taskCount)
         }
         // spawn_overhead does no CPU work; report workload=0 to avoid
         // misleading downstream analyses that scale by workload.

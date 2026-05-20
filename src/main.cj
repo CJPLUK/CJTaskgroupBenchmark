@@ -67,6 +67,52 @@ func runStructuredCpuBenchmark(taskCount: Int64): Int64 {
     }
 }
 
+// Pipeline benchmark: one heavy task, many light tasks, each result triggers
+// a small downstream serial computation.
+//
+// With submission-order iteration, the iterator blocks on task[0] (the heavy
+// one) before any downstream work can start, so downstream work runs entirely
+// AFTER the heavy task finishes.
+//
+// With completion-order iteration, the many light tasks stream in first, and
+// their downstream work runs in parallel with the heavy task. Total wall
+// clock is dominated by max(heavy_task, light_tasks + their_downstreams).
+//
+// Workloads are chosen so heavy >> N * downstream even at large task counts,
+// which keeps the benefit visible across the whole task_count series.
+let pipelineHeavyWorkload: Int64 = 30000000
+let pipelineLightWorkload: Int64 = 500000
+let pipelineDownstreamWorkload: Int64 = 500000
+
+func runPipelineSkewed(taskCount: Int64): Int64 {
+    return ThreadScope<Int64, Int64> {
+        group =>
+            var i: Int64 = 0
+            while (i < taskCount) {
+                let currentTaskIndex = i
+                let workload = if (currentTaskIndex == 0) {
+                    pipelineHeavyWorkload
+                } else {
+                    pipelineLightWorkload
+                }
+                group.add {
+                    runCpuChunk(workload, currentTaskIndex)
+                }
+                i += 1
+            }
+
+            // Serial downstream processing per result. The iterator order
+            // (submission vs completion) determines whether this loop can
+            // begin overlapping with the heavy task or has to wait for it.
+            var checksum: Int64 = 0
+            for (value in group) {
+                let downstream = runCpuChunk(pipelineDownstreamWorkload, value % 16)
+                checksum = (checksum + downstream) % 2147483647
+            }
+            checksum
+    }
+}
+
 let spawnOverheadRepeat: Int64 = 1000
 
 func runSpawnOverhead(taskCount: Int64): Int64 {
@@ -227,6 +273,12 @@ main(): Int64 {
     }
     runSeries("structured_thread_scope", benchmarkTotalWorkload, { taskCount =>
         runStructuredCpuBenchmark(taskCount)
+    })
+    // pipeline_skewed: 1 heavy + (N-1) light tasks, each result triggers a
+    // small serial downstream step. Demonstrates completion-order benefit.
+    let pipelineWorkload = pipelineHeavyWorkload + pipelineLightWorkload * 7
+    runSeries("pipeline_skewed", pipelineWorkload, { taskCount =>
+        runPipelineSkewed(taskCount)
     })
     // spawn_overhead does no CPU work; report total_workload=0 to avoid
     // misleading downstream analyses that scale by workload.
