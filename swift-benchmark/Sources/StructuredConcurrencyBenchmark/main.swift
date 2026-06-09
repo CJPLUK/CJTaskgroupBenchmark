@@ -85,17 +85,78 @@ private func runPipelineSkewed(taskCount: Int) async -> Int64 {
     return checksum
 }
 
-private let spawnOverheadRepeat = 1000
+// Mixed-latency benchmark: each task sleeps for a duration drawn from a
+// heavy-tailed pseudo-random distribution (80% fast / 15% medium / 5% slow),
+// modelling realistic service latency. Each result triggers a small CPU
+// downstream step. Sleep durations are deterministic per task index.
+//
+// All buckets are >= 10 ms to match Cangjie's sleep granularity, so the
+// distributions on both sides exercise the same sleep regime.
+//
+// Swift's TaskGroup is always completion-order, so this is the "baseline"
+// that Cangjie's iteration-order implementation is being measured against.
+private let mixedLatencyDownstreamWorkload = 1_500_000  // ~4-5 ms per-result CPU step
 
-private func runSpawnOverhead(taskCount: Int) async -> Int64 {
+private func mixedLatencyMicros(taskIndex: Int) -> Int {
+    let mixed = ((taskIndex + 1) &* 2_654_435_761) % 1000
+    let r = mixed < 0 ? mixed + 1000 : mixed
+
+    if r < 800 {
+        // 80% fast (10-28 ms)
+        return 10_000 + (r % 7) * 3_000
+    } else if r < 950 {
+        // 15% medium (50-100 ms)
+        return 50_000 + (r % 6) * 10_000
+    } else {
+        // 5% slow tail (150-250 ms)
+        return 150_000 + (r % 5) * 25_000
+    }
+}
+
+private func runMixedLatency(taskCount: Int) async -> Int64 {
+    var checksum: Int64 = 0
+
+    await withTaskGroup(of: Int64.self) { group in
+        for taskIndex in 0 ..< taskCount {
+            let currentTaskIndex = taskIndex
+            let latencyUs = mixedLatencyMicros(taskIndex: currentTaskIndex)
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(latencyUs) * 1_000)
+                return Int64(latencyUs)
+            }
+        }
+
+        for await value in group {
+            let downstream = runCPUChunk(
+                iterations: mixedLatencyDownstreamWorkload,
+                taskIndex: Int(value % 16)
+            )
+            checksum = (checksum + downstream) % 2_147_483_647
+        }
+    }
+
+    return checksum
+}
+
+// Scheduling-cost benchmark: pure spawn/iterate overhead across 5 orders
+// of N (1, 8, 64, 1k, 10k, 100k). Adaptive inner_reps so each measurement
+// covers ~10k total spawn/join operations.
+private let schedulingCostTargetTasks = 10_000
+
+private func buildSchedulingCostTaskCounts() -> [Int] {
+    [1, 8, 64, 1_000, 10_000, 100_000]
+}
+
+private func schedulingCostInnerReps(_ taskCount: Int) -> Int {
+    max(1, schedulingCostTargetTasks / taskCount)
+}
+
+private func runSchedulingCost(taskCount: Int) async -> Int64 {
+    let reps = schedulingCostInnerReps(taskCount)
     var result: Int64 = 0
-    for _ in 0 ..< spawnOverheadRepeat {
+    for _ in 0 ..< reps {
         result = await withTaskGroup(of: Int64.self, returning: Int64.self) { group in
             for taskIndex in 0 ..< taskCount {
-                // Capture the loop counter so each task returns a distinct
-                // non-constant value; otherwise the compiler may fold the
-                // sum to 0 and elide the spawn entirely (DCE), giving a
-                // misleadingly tiny benchmark result.
                 let currentTaskIndex = taskIndex
                 group.addTask { Int64(currentTaskIndex) }
             }
@@ -206,7 +267,7 @@ private func runSeries(
 struct StructuredConcurrencyBenchmarkCLI {
     static func main() async {
         print("# Structured concurrency CPU benchmark (Swift)")
-        print("# total_workload=\(benchmarkTotalWorkload),warmup_runs=\(benchmarkWarmupRuns),measured_runs=\(benchmarkMeasuredRuns),cooldown_ms=\(benchmarkCooldownMs),spawn_overhead_repeat=\(spawnOverheadRepeat)")
+        print("# total_workload=\(benchmarkTotalWorkload),warmup_runs=\(benchmarkWarmupRuns),measured_runs=\(benchmarkMeasuredRuns),cooldown_ms=\(benchmarkCooldownMs),scheduling_cost_target_tasks=\(schedulingCostTargetTasks)")
         print("language,benchmark,total_workload,task_count,iteration,elapsed_us,checksum")
 
         // CPU benchmarks: workload reflects the actual amount of work done.
@@ -222,10 +283,18 @@ struct StructuredConcurrencyBenchmarkCLI {
         await runSeries(benchmarkName: "pipeline_skewed", workload: pipelineWorkload) { taskCount in
             await runPipelineSkewed(taskCount: taskCount)
         }
-        // spawn_overhead does no CPU work; report workload=0 to avoid
-        // misleading downstream analyses that scale by workload.
-        await runSeries(benchmarkName: "spawn_overhead", workload: 0) { taskCount in
-            await runSpawnOverhead(taskCount: taskCount)
+        // mixed_latency: heavy-tailed sleep latency. workload=0 (no CPU work).
+        await runSeries(benchmarkName: "mixed_latency", workload: 0) { taskCount in
+            await runMixedLatency(taskCount: taskCount)
+        }
+        // scheduling_cost: pure spawn/iterate overhead across 5 orders of N.
+        // Adaptive inner_reps; workload = reps * task_count (total tasks).
+        for taskCount in buildSchedulingCostTaskCounts() {
+            let reps = schedulingCostInnerReps(taskCount)
+            let workload = reps * taskCount
+            await runSingleCase(benchmarkName: "scheduling_cost", workload: workload, taskCount: taskCount) {
+                await runSchedulingCost(taskCount: taskCount)
+            }
         }
     }
 }

@@ -121,8 +121,9 @@ def print_within_language_speedups(summary: dict[tuple[str, str, int], dict]) ->
             key for key in summary
             if key[0] == language
             and key[1] != sequential_key
-            and key[1] != "spawn_overhead"
+            and key[1] != "scheduling_cost"
             and key[1] != "pipeline_skewed"
+            and key[1] != "mixed_latency"
         ]
         for candidate in sorted(structured_candidates, key=lambda item: (item[1], item[2])):
             structured_benchmark = candidate[1]
@@ -149,7 +150,8 @@ BENCHMARK_PAIRS = [
     ("sequential_baseline", "sequential_baseline", "Sequential Baseline"),
     ("structured_thread_scope", "structured_task_group", "Structured Concurrency (CPU)"),
     ("pipeline_skewed", "pipeline_skewed", "Pipeline (1 heavy + N-1 light)"),
-    ("spawn_overhead", "spawn_overhead", "Spawn Overhead (empty tasks)"),
+    ("mixed_latency", "mixed_latency", "Mixed Latency (heavy-tailed sleep)"),
+    ("scheduling_cost", "scheduling_cost", "Scheduling Cost (empty tasks, N=1..100k)"),
 ]
 
 
