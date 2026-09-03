@@ -1,6 +1,6 @@
 package cj_taskgroup_benchmark
 
-import cj_taskgroups.*
+import std.concurrent.*
 import std.collection.ArrayList
 import std.time.DateTime
 import std.math.sqrt
@@ -47,13 +47,13 @@ func runSequentialCpuBenchmark(): Int64 {
 }
 
 func runStructuredCpuBenchmark(taskCount: Int64): Int64 {
-    return ThreadScope<Int64, Int64> {
+    return threadScope<Int64, Int64> {
         group =>
             var taskIndex = 0
             while (taskIndex < taskCount) {
                 let currentTaskIndex = taskIndex
                 let iterations = chunkIterationsForTask(benchmarkTotalWorkload, taskCount, currentTaskIndex)
-                group.add {
+                group.launch {
                     runCpuChunk(iterations, currentTaskIndex)
                 }
                 taskIndex += 1
@@ -85,7 +85,7 @@ let pipelineLightWorkload: Int64 = 500000
 let pipelineDownstreamWorkload: Int64 = 500000
 
 func runPipelineSkewed(taskCount: Int64): Int64 {
-    return ThreadScope<Int64, Int64> {
+    return threadScope<Int64, Int64> {
         group =>
             var i: Int64 = 0
             while (i < taskCount) {
@@ -95,7 +95,7 @@ func runPipelineSkewed(taskCount: Int64): Int64 {
                 } else {
                     pipelineLightWorkload
                 }
-                group.add {
+                group.launch {
                     runCpuChunk(workload, currentTaskIndex)
                 }
                 i += 1
@@ -158,13 +158,13 @@ func mixedLatencyMicros(taskIndex: Int64): Int64 {
 }
 
 func runMixedLatency(taskCount: Int64): Int64 {
-    return ThreadScope<Int64, Int64> {
+    return threadScope<Int64, Int64> {
         group =>
             var i: Int64 = 0
             while (i < taskCount) {
                 let currentTaskIndex = i
                 let latencyUs = mixedLatencyMicros(currentTaskIndex)
-                group.add {
+                group.launch {
                     sleep(Duration.microsecond * latencyUs)
                     latencyUs
                 }
@@ -220,12 +220,12 @@ func runSchedulingCost(taskCount: Int64): Int64 {
     var result: Int64 = 0
     var rep: Int64 = 0
     while (rep < reps) {
-        result = ThreadScope<Int64, Int64> {
+        result = threadScope<Int64, Int64> {
             group =>
                 var i: Int64 = 0
                 while (i < taskCount) {
                     let currentTaskIndex = i
-                    group.add { currentTaskIndex }
+                    group.launch { currentTaskIndex }
                     i += 1
                 }
                 var sum: Int64 = 0

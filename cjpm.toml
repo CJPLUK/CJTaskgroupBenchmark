@@ -14,5 +14,3 @@
   package-configuration = {}
   scripts = {}
 
-[dependencies]
-  cj_taskgroups = { path = "../..", output-type = "static" }
