@@ -1,0 +1,16 @@
+[package]
+  cjc-version = "1.1.0"
+  name = "cj_taskgroup_minimal_benchmark"
+  organization = ""
+  description = "Minimal threadScope versus spawn benchmarks"
+  version = "1.0.0"
+  src-dir = "src"
+  target-dir = ""
+  script-dir = ""
+  output-type = "executable"
+  compile-option = "-O2"
+  override-compile-option = ""
+  link-option = ""
+  package-configuration = {}
+  scripts = {}
+

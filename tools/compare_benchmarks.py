@@ -117,33 +117,101 @@ def print_within_language_speedups(summary: dict[tuple[str, str, int], dict]) ->
         baseline = summary.get((language, sequential_key, 1))
         if baseline is None:
             continue
-        structured_candidates = [
+        cpu_candidates = [
             key for key in summary
             if key[0] == language
-            and key[1] != sequential_key
-            and key[1] != "scheduling_cost"
-            and key[1] != "pipeline_skewed"
-            and key[1] != "mixed_latency"
+            and key[1] in {"structured_thread_scope", "structured_task_group", "spawn_cpu"}
         ]
-        for candidate in sorted(structured_candidates, key=lambda item: (item[1], item[2])):
-            structured_benchmark = candidate[1]
+        for candidate in sorted(cpu_candidates, key=lambda item: (item[1], item[2])):
+            cpu_benchmark = candidate[1]
             task_count = candidate[2]
-            structured = summary[candidate]
-            speedup = baseline["median_us"] / structured["median_us"]
+            concurrent = summary[candidate]
+            speedup = baseline["median_us"] / concurrent["median_us"]
             rows.append(
                 [
                     language,
-                    structured_benchmark,
+                    cpu_benchmark,
                     str(task_count),
                     f"{speedup:.2f}x",
                 ]
             )
+    if not rows:
+        return
+
     print()
     print_table(
-        "Within-language structured speedups",
+        "Within-language CPU speedups",
         ["language", "benchmark", "task_count", "speedup_vs_sequential_baseline"],
         rows,
     )
+
+
+CANGJIE_PRIMITIVE_PAIRS = [
+    ("structured_thread_scope", "spawn_cpu", "CPU (fixed total work)"),
+    ("pipeline_skewed", "spawn_pipeline_skewed", "Pipeline (1 heavy + N-1 light)"),
+    ("mixed_latency", "spawn_mixed_latency", "Mixed Latency (heavy-tailed sleep)"),
+    ("scheduling_cost", "spawn_scheduling_cost", "Scheduling Cost (trivial tasks)"),
+]
+
+
+def print_cangjie_primitive_comparison(summary: dict[tuple[str, str, int], dict]) -> None:
+    for thread_scope_name, spawn_name, label in CANGJIE_PRIMITIVE_PAIRS:
+        thread_scope_data = {
+            key[2]: value
+            for key, value in summary.items()
+            if key[0] == "cangjie" and key[1] == thread_scope_name
+        }
+        spawn_data = {
+            key[2]: value
+            for key, value in summary.items()
+            if key[0] == "cangjie" and key[1] == spawn_name
+        }
+
+        common_task_counts = sorted(set(thread_scope_data) & set(spawn_data))
+        if not common_task_counts:
+            continue
+
+        rows: list[list[str]] = []
+        for task_count in common_task_counts:
+            thread_scope = thread_scope_data[task_count]
+            spawn = spawn_data[task_count]
+            if thread_scope["median_us"] > 0 and spawn["median_us"] > 0:
+                ratio = spawn["median_us"] / thread_scope["median_us"]
+                delta_pct = (
+                    (thread_scope["median_us"] - spawn["median_us"])
+                    / spawn["median_us"]
+                    * 100
+                )
+                if abs(delta_pct) < TIED_THRESHOLD_PCT:
+                    winner = "tied"
+                elif delta_pct < 0:
+                    winner = f"threadScope {abs(delta_pct):.1f}% faster"
+                else:
+                    faster_pct = (
+                        (thread_scope["median_us"] - spawn["median_us"])
+                        / thread_scope["median_us"]
+                        * 100
+                    )
+                    winner = f"spawn {faster_pct:.1f}% faster"
+            else:
+                ratio = 0
+                winner = "n/a"
+            rows.append(
+                [
+                    str(task_count),
+                    f"{thread_scope['median_us']}us",
+                    f"{spawn['median_us']}us",
+                    f"{ratio:.2f}x" if ratio else "n/a",
+                    winner,
+                ]
+            )
+
+        print()
+        print_table(
+            f"Cangjie: {label} (threadScope={thread_scope_name}, spawn={spawn_name})",
+            ["task_count", "threadScope_median", "spawn_median", "spawn/threadScope", "winner"],
+            rows,
+        )
 
 
 BENCHMARK_PAIRS = [
@@ -151,7 +219,7 @@ BENCHMARK_PAIRS = [
     ("structured_thread_scope", "structured_task_group", "Structured Concurrency (CPU)"),
     ("pipeline_skewed", "pipeline_skewed", "Pipeline (1 heavy + N-1 light)"),
     ("mixed_latency", "mixed_latency", "Mixed Latency (heavy-tailed sleep)"),
-    ("scheduling_cost", "scheduling_cost", "Scheduling Cost (empty tasks, N=1..100k)"),
+    ("scheduling_cost", "scheduling_cost", "Scheduling Cost (trivial tasks)"),
 ]
 
 
@@ -237,6 +305,7 @@ def main(argv: list[str]) -> int:
     summary = summarize(rows)
     print_language_breakdown(summary)
     print_within_language_speedups(summary)
+    print_cangjie_primitive_comparison(summary)
     print_cross_language_comparison(summary)
     return 0
 

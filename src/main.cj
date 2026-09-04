@@ -67,6 +67,27 @@ func runStructuredCpuBenchmark(taskCount: Int64): Int64 {
     }
 }
 
+// Raw-spawn equivalent of runStructuredCpuBenchmark. Futures are retained and
+// joined in submission order, matching the usual manual spawn pattern.
+func runSpawnCpuBenchmark(taskCount: Int64): Int64 {
+    let futures = ArrayList<Future<Int64>>()
+    var taskIndex: Int64 = 0
+    while (taskIndex < taskCount) {
+        let currentTaskIndex = taskIndex
+        let iterations = chunkIterationsForTask(benchmarkTotalWorkload, taskCount, currentTaskIndex)
+        futures.add(spawn {
+            runCpuChunk(iterations, currentTaskIndex)
+        })
+        taskIndex += 1
+    }
+
+    var checksum: Int64 = 0
+    for (future in futures) {
+        checksum = (checksum + future.get()) % 2147483647
+    }
+    return checksum
+}
+
 // Pipeline benchmark: one heavy task, many light tasks, each result triggers
 // a small downstream serial computation.
 //
@@ -111,6 +132,34 @@ func runPipelineSkewed(taskCount: Int64): Int64 {
             }
             checksum
     }
+}
+
+// Raw spawn exposes results through individual Futures. Joining this list in
+// submission order deliberately shows the head-of-line blocking of the usual
+// manual pattern next to threadScope's completion-order iterator.
+func runSpawnPipelineSkewed(taskCount: Int64): Int64 {
+    let futures = ArrayList<Future<Int64>>()
+    var i: Int64 = 0
+    while (i < taskCount) {
+        let currentTaskIndex = i
+        let workload = if (currentTaskIndex == 0) {
+            pipelineHeavyWorkload
+        } else {
+            pipelineLightWorkload
+        }
+        futures.add(spawn {
+            runCpuChunk(workload, currentTaskIndex)
+        })
+        i += 1
+    }
+
+    var checksum: Int64 = 0
+    for (future in futures) {
+        let value = future.get()
+        let downstream = runCpuChunk(pipelineDownstreamWorkload, value % 16)
+        checksum = (checksum + downstream) % 2147483647
+    }
+    return checksum
 }
 
 // Mixed-latency benchmark: each task sleeps for a duration drawn from a
@@ -180,6 +229,28 @@ func runMixedLatency(taskCount: Int64): Int64 {
     }
 }
 
+func runSpawnMixedLatency(taskCount: Int64): Int64 {
+    let futures = ArrayList<Future<Int64>>()
+    var i: Int64 = 0
+    while (i < taskCount) {
+        let currentTaskIndex = i
+        let latencyUs = mixedLatencyMicros(currentTaskIndex)
+        futures.add(spawn {
+            sleep(Duration.microsecond * latencyUs)
+            latencyUs
+        })
+        i += 1
+    }
+
+    var checksum: Int64 = 0
+    for (future in futures) {
+        let value = future.get()
+        let downstream = runCpuChunk(mixedLatencyDownstreamWorkload, value % 16)
+        checksum = (checksum + downstream) % 2147483647
+    }
+    return checksum
+}
+
 // Scheduling-cost benchmark: measures pure scheduling overhead (spawn,
 // queue, atomic, iterator) across a wide range of task counts using
 // trivial tasks (each returns its index, no CPU work).
@@ -234,6 +305,29 @@ func runSchedulingCost(taskCount: Int64): Int64 {
                 }
                 sum
         }
+        rep += 1
+    }
+    return result
+}
+
+func runSpawnSchedulingCost(taskCount: Int64): Int64 {
+    let reps = schedulingCostInnerReps(taskCount)
+    var result: Int64 = 0
+    var rep: Int64 = 0
+    while (rep < reps) {
+        let futures = ArrayList<Future<Int64>>()
+        var i: Int64 = 0
+        while (i < taskCount) {
+            let currentTaskIndex = i
+            futures.add(spawn { currentTaskIndex })
+            i += 1
+        }
+
+        var sum: Int64 = 0
+        for (future in futures) {
+            sum += future.get()
+        }
+        result = sum
         rep += 1
     }
     return result
@@ -371,16 +465,25 @@ main(): Int64 {
     runSeries("structured_thread_scope", benchmarkTotalWorkload, { taskCount =>
         runStructuredCpuBenchmark(taskCount)
     })
+    runSeries("spawn_cpu", benchmarkTotalWorkload, { taskCount =>
+        runSpawnCpuBenchmark(taskCount)
+    })
     // pipeline_skewed: 1 heavy + (N-1) light tasks, each result triggers a
     // small serial downstream step. Demonstrates completion-order benefit.
     let pipelineWorkload = pipelineHeavyWorkload + pipelineLightWorkload * 7
     runSeries("pipeline_skewed", pipelineWorkload, { taskCount =>
         runPipelineSkewed(taskCount)
     })
+    runSeries("spawn_pipeline_skewed", pipelineWorkload, { taskCount =>
+        runSpawnPipelineSkewed(taskCount)
+    })
     // mixed_latency: heavy-tailed sleep latency distribution. workload=0
     // because no real CPU work; the timing is dominated by sleep().
     runSeries("mixed_latency", 0, { taskCount =>
         runMixedLatency(taskCount)
+    })
+    runSeries("spawn_mixed_latency", 0, { taskCount =>
+        runSpawnMixedLatency(taskCount)
     })
     // scheduling_cost: pure spawn/iterate overhead across 5 orders of N.
     // Adaptive inner_reps targets ~10k total tasks per measurement;
@@ -390,6 +493,9 @@ main(): Int64 {
         let workload = reps * taskCount
         runSingleCase("scheduling_cost", workload, taskCount) {
             runSchedulingCost(taskCount)
+        }
+        runSingleCase("spawn_scheduling_cost", workload, taskCount) {
+            runSpawnSchedulingCost(taskCount)
         }
     }
     return 0
